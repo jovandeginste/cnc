@@ -36,58 +36,58 @@ module Cnc
 
     def get_token
       url = '/generate_token'
-      status, body = query_server(url, {}, false)
-      return body
+      result = query_server(url, {}, false)
+      return result
     end
 
     def query_server(url, headers = {}, authenticated = true)
-      headers = headers.clone
-      @connection ||= Faraday.new("http://#{self.server}", :ssl => ssl_params)
+      method = :get
+      parameters = {}
 
-      headers['X-User'] = self.user.name
-      if authenticated
-        token = [Time.now.to_i, self.get_token].join(':')
-        enc_token = Base64::encode64(self.user.encrypt(token))
-
-        headers['X-Token'] = enc_token
-      end
-
-      begin
-        result = @connection.get(url, {}, headers)
-      rescue Faraday::SSLError => e
-        puts "SSL connection could not be established"
-      end
-
-      status, body = result.status, result.body
-      puts "[#{status}] #{body}"
-      return status, body
+      return send_server(url, method, parameters, headers, authenticated)
     end
 
     def post_server(url, payload, headers = {}, authenticated = true)
-      headers = headers.clone
-      @connection ||= Faraday.new("http://#{self.server}", :ssl => ssl_params)
-
-      headers['X-User'] = self.user.name
-      if authenticated
-        token = [Time.now.to_i, self.get_token].join(':')
-        enc_token = Base64::encode64(self.user.encrypt(token))
-
-        headers['X-Token'] = enc_token
-      end
-
+      method = :post
       parameters = {
         payload: Base64::encode64(self.server_encrypt(payload.to_json)),
       }
 
+      return send_server(url, method, parameters, headers, authenticated)
+    end
+
+    def send_server(url, method, parameters, headers, authenticated)
+      headers = headers.clone
+      @connection ||= Faraday.new("http://#{self.server}", :ssl => ssl_params)
+
+      headers['X-User'] = self.user.name
+      if authenticated
+        token = [Time.now.to_i, self.get_token].join(':')
+        enc_token = Base64::encode64(self.user.encrypt(token))
+
+        headers['X-Token'] = enc_token
+      end
+
       begin
-        result = @connection.post(url, parameters, headers)
+        case method
+        when :get
+          result = @connection.get(url, parameters, headers)
+        when :post
+          result = @connection.post(url, parameters, headers)
+        end
       rescue Faraday::SSLError => e
         puts "SSL connection could not be established"
       end
 
       status, body = result.status, result.body
-      puts "[#{status}] #{body}"
-      return status, body
+      puts "[#{status}] #{url} (size=#{body.size})"
+
+      case result.headers["content-type"]
+      when "application/json"
+        return JSON.parse(body)
+      else
+        return body
+      end
     end
 
     def server_encrypt(string)

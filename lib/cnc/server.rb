@@ -89,7 +89,7 @@ module Cnc
 
       command = @payload["command"]
 
-      puts "Command: #{command}"
+      puts "Command executed by '#{@user.real_name}': #{command}"
       begin
         cmd = TTY::Command.new(printer: :null)
 
