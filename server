@@ -1,0 +1,44 @@
+#!/usr/bin/env ruby
+
+$:.unshift File.join(File.dirname(__FILE__), 'lib')
+
+require 'cnc/server'
+require 'thin'
+require 'openssl'
+
+class MyThinBackend < ::Thin::Backends::TcpServer
+  def initialize(host, port, options)
+    super(host, port)
+    @ssl = !true
+    @ssl_options = options
+  end
+end
+
+class << Cnc::Server
+  attr_accessor :key_file, :cert_file
+  def server_settings
+    {
+      :backend          => MyThinBackend,
+      :private_key_file => key_file,
+      :cert_chain_file  => cert_file,
+      :verify_peer      => false,
+    }
+  end
+end
+
+ssl_dir = File.join(File.dirname(__FILE__), 'keys', 'server')
+key_file = File.join(ssl_dir, 'key.pem')
+cert_file = File.join(ssl_dir, 'cert.pem')
+
+Cnc::User.new 'jo', real_name: 'Jo Vandeginste', public_key: OpenSSL::PKey.read(File.read(File.join(File.dirname(__FILE__), 'keys', 'client', 'public.pem')))
+
+Cnc::Server.configure do |server|
+  #server.set :environment, :production
+  #server.set :bind, '0.0.0.0'
+  server.set :port, 9443
+  server.set :server, 'thin'
+  server.set :key_file, key_file
+  server.set :cert_file, cert_file
+end
+
+Cnc::Server.run!

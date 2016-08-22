@@ -1,0 +1,39 @@
+#!/usr/bin/env ruby
+
+$:.unshift File.join(File.dirname(__FILE__), 'lib')
+
+require 'cnc/client'
+require 'openssl'
+require 'base64'
+
+client_ssl_dir = File.join(File.dirname(__FILE__), 'keys', 'client')
+client_key_file = File.join(client_ssl_dir, 'key.pem')
+client_pub_file = File.join(client_ssl_dir, 'public.pem')
+
+passphrase = nil
+
+server_ssl_dir = File.join(File.dirname(__FILE__), 'keys', 'server')
+server_cert_file = File.join(server_ssl_dir, 'cert.pem')
+server_public_file = File.join(server_ssl_dir, 'public.pem')
+
+client_key = OpenSSL::PKey.read(File.read(client_key_file), passphrase)
+client_pub = OpenSSL::PKey.read(File.read(client_pub_file))
+
+params = {
+  ssl_params: {
+    ca_file: server_cert_file,
+  },
+  server_public: OpenSSL::PKey.read(File.read(server_public_file)),
+}
+
+user = {
+  name: 'jo',
+  public_key: client_pub,
+  private_key: client_key,
+}
+
+user = Cnc::User.new('jo', real_name: 'Jo Vandeginste', private_key: client_key, public_key: client_pub)
+
+client = Cnc::Client.new('localhost:9443', user, params)
+client.ping
+client.execute(command: 'hostname; uptime; date')
