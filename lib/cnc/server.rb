@@ -2,6 +2,7 @@ require 'sinatra/base'
 require 'cnc/user'
 require 'json'
 require 'base64'
+require 'tty-command'
 
 module Cnc
   class Server < ::Sinatra::Base
@@ -27,13 +28,21 @@ module Cnc
       end
 
       payload_param = params[:payload]
-      puts "Payload parameter: #{payload_param}"
       if payload_param
-        @payload = JSON.parse(self.decrypt(Base64::decode64(payload_param)))
+        @payload = self.decrypt(Base64::decode64(payload_param))
         if @payload.nil?
           status 403
           body 'You did not use the public key of this server for encryption!'
           return
+        else
+          begin
+            @payload = JSON.parse(@payload)
+          rescue
+            @payload = nil
+            status 403
+            body 'Payload was not correctly encoded'
+            return
+          end
         end
       end
     end
@@ -82,15 +91,18 @@ module Cnc
 
       puts "Command: #{command}"
       begin
-        result = %x[#{command}].split(/\n/)
+        cmd = TTY::Command.new(printer: :null)
+
+        stdout, stderr = cmd.run!(command)
         content_type :json
         body ({
           command: command,
-          output: result,
-        }).to_json
-      rescue
-        "something went wrong"
+          output: stdout,
+          error: stderr,
+          }).to_json
+        rescue
+          "something went wrong"
+        end
       end
     end
   end
-end

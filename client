@@ -36,4 +36,5 @@ user = Cnc::User.new('jo', real_name: 'Jo Vandeginste', private_key: client_key,
 
 client = Cnc::Client.new('localhost:9443', user, params)
 client.ping
-client.execute(command: 'hostname; uptime; date')
+client.execute(command: 'hostname; uptime; date; whoami')
+client.execute(command: 'whoami')
