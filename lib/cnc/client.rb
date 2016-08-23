@@ -58,7 +58,7 @@ module Cnc
 
     def send_server(url, method, parameters, headers, authenticated)
       headers = headers.clone
-      @connection ||= Faraday.new("http://#{self.server}", :ssl => ssl_params)
+      @connection ||= Faraday.new("https://#{self.server}", :ssl => ssl_params)
 
       headers['X-User'] = self.user.name
       if authenticated
